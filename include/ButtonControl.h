@@ -4,5 +4,5 @@
 
 #ifndef UNTITLED6_BUTTONCONTROL_H
 #define UNTITLED6_BUTTONCONTROL_H
-
+void doubleClickFunct();
 #endif //UNTITLED6_BUTTONCONTROL_H

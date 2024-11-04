@@ -1,0 +1,8 @@
+//
+// Created by Pietr on 2024-11-04.
+//
+
+#ifndef UNTITLED6_BUTTONCONTROL_H
+#define UNTITLED6_BUTTONCONTROL_H
+
+#endif //UNTITLED6_BUTTONCONTROL_H

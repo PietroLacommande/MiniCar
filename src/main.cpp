@@ -4,6 +4,7 @@
 #define joyStickX 34
 #define joyStickY 35
 #define encoderHoles 20
+#define wheelCircumference 0.22
 
 unsigned int LMcounter=0;
 hw_timer_t *timer = NULL;  // Define a pointer to the timer
@@ -19,8 +20,9 @@ void IRAM_ATTR onTimer() {
     timerDetachInterrupt(timer);
     Serial.print("Motor speed ");
     int rotation = LMcounter/encoderHoles;
-    Serial.print(rotation,DEC);
-    Serial.println(" Rotations per second");
+    float speed = rotation*wheelCircumference;
+    Serial.print(speed);
+    Serial.println(" m/s");
     LMcounter=0;
     timerAttachInterrupt(timer, &onTimer,true);
 }

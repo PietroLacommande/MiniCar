@@ -1,10 +1,12 @@
 #include <Arduino.h>
 #include "MotorControl.h"
+#include "ButtonControl.h"
 
 #define joyStickX 34
 #define joyStickY 35
 #define encoderHoles 20
 #define wheelCircumference 0.22
+#define buttonPin 16  // Define the button pin
 
 unsigned int LMcounter_Left=0;
 unsigned int LMcounter_Right=0;
@@ -32,28 +34,16 @@ void IRAM_ATTR onTimer() {
     float rotation_Right = (float)LMcounter_Right / encoderHoles;
     float speed_Right = rotation_Right * wheelCircumference;
 
-    if (isBackwards) {
+
         Serial.print("Left wheel speed: ");
-        Serial.print("-");
+        Serial.print(isBackwards ? "-" : "");
         Serial.print(speed_Left, 2);
-        Serial.println(" m/s, ");
+        Serial.print(" m/s, ");
 
         Serial.print("Right wheel speed: ");
-        Serial.print("-");
+        Serial.print(isBackwards ? "-" : "");
         Serial.print(speed_Right, 2);
         Serial.println(" m/s");
-
-    }
-
-    else {
-        Serial.print("Left wheel speed: ");
-        Serial.print(speed_Left, 2);
-        Serial.println(" m/s, ");
-
-        Serial.print("Right wheel speed: ");
-        Serial.print(speed_Right, 2);
-        Serial.println(" m/s");
-    }
 
 
     LMcounter_Left = 0;
@@ -79,7 +69,14 @@ void setup() {
 
     attachInterrupt(digitalPinToInterrupt(17),speedSensorRight,RISING);
     attachInterrupt(digitalPinToInterrupt(5),speedSensorLeft,RISING);
+
+
+    // Interruption button set up
+    pinMode(buttonPin, INPUT_PULLUP);  // uses the pin defined by buttonPin
+    attachInterrupt(digitalPinToInterrupt(buttonPin), doubleClickFunct, RISING);  // Uses the interrupt function doubleClickFunct
+
 }
+
 
 void loop() {
 

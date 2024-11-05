@@ -6,26 +6,62 @@
 #define encoderHoles 20
 #define wheelCircumference 0.22
 
-unsigned int LMcounter=0;
+unsigned int LMcounter_Left=0;
+unsigned int LMcounter_Right=0;
 hw_timer_t *timer = NULL;  // Define a pointer to the timer
 
 int motorSpeedA=0;
 int motorSpeedB=0;
+bool isBackwards = false;
 
-void speedSensor(){
-    LMcounter++;
+void speedSensorRight(){
+    LMcounter_Right++;
 }
+
+void speedSensorLeft(){
+    LMcounter_Left++;
+}
+
+
 
 void IRAM_ATTR onTimer() {
     timerDetachInterrupt(timer);
-    Serial.print("Motor speed ");
-    int rotation = LMcounter/encoderHoles;
-    float speed = rotation*wheelCircumference;
-    Serial.print(speed);
-    Serial.println(" m/s");
-    LMcounter=0;
-    timerAttachInterrupt(timer, &onTimer,true);
+    float rotation_Left = (float)LMcounter_Left / encoderHoles;
+    float speed_Left = rotation_Left * wheelCircumference;
+
+    float rotation_Right = (float)LMcounter_Right / encoderHoles;
+    float speed_Right = rotation_Right * wheelCircumference;
+
+    if (isBackwards) {
+        Serial.print("Left wheel speed: ");
+        Serial.print("-");
+        Serial.print(speed_Left, 2);
+        Serial.println(" m/s, ");
+
+        Serial.print("Right wheel speed: ");
+        Serial.print("-");
+        Serial.print(speed_Right, 2);
+        Serial.println(" m/s");
+
+    }
+
+    else {
+        Serial.print("Left wheel speed: ");
+        Serial.print(speed_Left, 2);
+        Serial.println(" m/s, ");
+
+        Serial.print("Right wheel speed: ");
+        Serial.print(speed_Right, 2);
+        Serial.println(" m/s");
+    }
+
+
+    LMcounter_Left = 0;
+    LMcounter_Right = 0;
+    timerAttachInterrupt(timer, &onTimer, true);
 }
+
+
 
 
 
@@ -39,23 +75,23 @@ void setup() {
     timerAlarmEnable(timer);
 
     pinMode(17, INPUT);    // Set encoder pin as input
-    attachInterrupt(digitalPinToInterrupt(17),speedSensor,RISING);
+    pinMode(5, INPUT);    // Set encoder pin as input
 
+    attachInterrupt(digitalPinToInterrupt(17),speedSensorRight,RISING);
+    attachInterrupt(digitalPinToInterrupt(5),speedSensorLeft,RISING);
 }
 
 void loop() {
 
-    int xAxis= analogRead(joyStickX);
-    int yAxis= analogRead(joyStickY);
+    int x= analogRead(joyStickX);
+    int y= analogRead(joyStickY);
 //    Serial.print("x-axis:");
 //    Serial.println(xAxis);
 //
 //    Serial.print("y-axis:");
 //    Serial.println(yAxis);
 
-
-    SpeedAndDirectionControl(xAxis,yAxis,&motorSpeedA, &motorSpeedB);
-
+    SpeedAndDirectionControl(x, y, &motorSpeedA, &motorSpeedB, &isBackwards);
     //affect motor PWM
     analogWrite(enableA, motorSpeedA);
     analogWrite(enableB, motorSpeedB);
@@ -68,5 +104,5 @@ void loop() {
 //    Serial.print("motorSpeedB: ");
 //    Serial.println(motorSpeedB);
 
-    delay(1000);
+    delay(100);
 }

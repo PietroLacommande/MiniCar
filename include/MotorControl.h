@@ -20,7 +20,6 @@ void setUpWheelLogic(int pin1, int pin2, int pin3, int pin4, int pinA,  int pinB
 void setUpWheelLogic(int pin1, int pin2, int pin3, int pin4);
 
 
-
-void SpeedAndDirectionControl(int xAxis, int yAxis, int* motorSpeedA, int* motorSpeedB);
+void SpeedAndDirectionControl(int xAxis, int yAxis, int* motorSpeedA, int* motorSpeedB, bool*isBackward);
 
 #endif //UNTITLED6_MOTORCONTROL_H

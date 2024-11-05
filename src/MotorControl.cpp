@@ -21,8 +21,8 @@ void setUpWheelLogic(int pin1, int pin2, int pin3, int pin4){
     pinMode(pin4, OUTPUT);
 }
 
-void SpeedAndDirectionControl(int xAxis, int yAxis, int* motorSpeedA, int* motorSpeedB) {
-    if (yAxis < 1500) {
+void SpeedAndDirectionControl(int xAxis, int yAxis, int* motorSpeedA, int* motorSpeedB, bool* isReversed) {
+    if (yAxis < 1350) {
         // Set Motor A backward
         digitalWrite(input1, HIGH);
         digitalWrite(input2, LOW);
@@ -32,7 +32,8 @@ void SpeedAndDirectionControl(int xAxis, int yAxis, int* motorSpeedA, int* motor
         // Convert the declining Y-axis readings for going backward from 470
         *motorSpeedA = map(yAxis, 1500, 0, 80, 255);
         *motorSpeedB = map(yAxis, 1500, 0, 80, 255);
-    } else if (yAxis > 2000) {
+        *isReversed = true;
+    } else if (yAxis > 2150) {
         // Set Motor A forward
         digitalWrite(input1, LOW);
         digitalWrite(input2, HIGH);
@@ -42,9 +43,11 @@ void SpeedAndDirectionControl(int xAxis, int yAxis, int* motorSpeedA, int* motor
         // Convert the declining Y-axis readings for going backward from 470
         *motorSpeedA = map(yAxis, 2000, 4095, 80, 255);
         *motorSpeedB = map(yAxis, 2000, 4095, 80, 255);
+        *isReversed = false;
     } else {
         *motorSpeedA = 0;
         *motorSpeedB = 0;
+        *isReversed = false;
     }
 
 
@@ -53,8 +56,8 @@ void SpeedAndDirectionControl(int xAxis, int yAxis, int* motorSpeedA, int* motor
         // Convert the declining X-axis readings from 470 to 0 into increasing values
         int xMapped = map(xAxis, 1500, 0, 80, 255);
         // Move to left - decrease left motor speed, increase right motor speed
-        *motorSpeedA = *motorSpeedA - xMapped;
-        *motorSpeedB = *motorSpeedB + xMapped;
+        *motorSpeedA = *motorSpeedA + xMapped;
+        *motorSpeedB = *motorSpeedB - xMapped;
         // Confine the range from 0 to 255
         if (*motorSpeedA < 0) {
             *motorSpeedA = 0;
@@ -64,12 +67,12 @@ void SpeedAndDirectionControl(int xAxis, int yAxis, int* motorSpeedA, int* motor
         }
     }
 
-    else if (xAxis > 2000) {
+    else if (xAxis >2000) {
         // Convert the increasing X-axis readings from 550 to 1023 into 0 to 255
         int xMapped = map(xAxis, 2000, 4095, 0, 255);
         // Move right - decrease right motor speed, increase left motor speed
-        *motorSpeedA = *motorSpeedA + xMapped;
-        *motorSpeedB = *motorSpeedB - xMapped;
+        *motorSpeedA = *motorSpeedA - xMapped;
+        *motorSpeedB = *motorSpeedB + xMapped;
         // Confine the range from 0 to 255
         if (*motorSpeedA > 255) {
             *motorSpeedA = 255;

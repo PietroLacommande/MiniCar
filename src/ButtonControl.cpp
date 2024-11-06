@@ -4,7 +4,7 @@
 
 #include <Arduino.h>
 #include "ButtonControl.h"
-
+#include "p_i_d_controller.h"
 
 // //Function executed when there is an interrupt
 // void doubleClickFunct() {
@@ -36,6 +36,10 @@ const unsigned long MaxDebounceDelay = 100;  // Délai maximal pour "debounce"
 const unsigned long DoubleClickThreshold = 400;  // Seuil de double-clic (en millisecondes)
 volatile int interruptCounter = 0;  // Compteur des interruptions
 
+
+// PID pidController(0,0,0);  // Déclarez l'objet
+
+
 // Fonction exécutée lorsqu'il y a une interruption
 void IRAM_ATTR doubleClickFunct() {
     unsigned long currentTime = millis();  // Obtenez le temps courant
@@ -45,8 +49,13 @@ void IRAM_ATTR doubleClickFunct() {
             // Si un deuxième clic est détecté dans le seuil de double-clic
             interruptCounter = 0;  // Réinitialiser le compteur sur double-clic
             firstClickDetected = false;  // Réinitialiser le drapeau
-            Serial.print("Double clic de: Compteur réinitialisé à 0");
+            Serial.print("Double clic detected: Pas de PID");
             Serial.println(interruptCounter);
+
+
+            // Réinitialiser les valeurs PID
+            // pidController.resetTunings(); // pas bon car tu ne reset pas le bon PID
+
         } else {
             // Premier clic détecté ou il s'est passé trop de temps pour un double-clic
             firstClickTime = currentTime;

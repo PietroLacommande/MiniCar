@@ -1,1 +1,17 @@
-.pio
+# Compiled output
+/build/
+/*.bin
+/*.elf
+/*.map
+
+# IDE settings
+/.vscode/
+/*.swp
+*.swo
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Backup sdkconfig
+sdkconfig.old

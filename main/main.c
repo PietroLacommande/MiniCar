@@ -4,20 +4,20 @@
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_log.h"
 #include "driver/ledc.h"
 #include "esp_timer.h"
+#include "driver/pulse_cnt.h"
+
 #define HIGH 1
 #define LOW 0
-#define ADC_UNIT ADC_UNIT_1
-#define ADC_CHANNEL ADC_CHANNEL_6 //gpio34
+
+//Pins used to command motor through LM298
 #define input1 GPIO_NUM_18
 #define input2 GPIO_NUM_19
 #define input3 GPIO_NUM_32
 #define input4 GPIO_NUM_33
 #define enableA GPIO_NUM_25
 #define enableB GPIO_NUM_26
-
 #define OUTPUT_PINS ((1ULL << input1) | (1ULL << input2) |(1ULL << input3) | (1ULL << input4) | (1ULL << enableA) | (1ULL << enableB)) // Define pins as a bitmask
 
 //AUTOSAR types
@@ -29,9 +29,16 @@ typedef uint8_t Std_ReturnType;
 #define DMA_BUFFER_SIZE 32
 #define CONV_FRAME_SIZE SOC_ADC_DIGI_DATA_BYTES_PER_CONV
 #define SAMPLE_FREQUENCY 20000 
+#define ADC_UNIT ADC_UNIT_1
+#define ADC_CHANNEL ADC_CHANNEL_6 //gpio34
 
-unsigned int LMcounter_Left=0;
-unsigned int LMcounter_Right=0;
+// unsigned int LMcounter_Left=0;
+// unsigned int LMcounter_Right=0;
+
+//Encoder defines
+#define encoderHoles 20
+#define wheelCircumference 0.22
+bool isReversed= false;
 
 //Function declatations
 Std_ReturnType setUpWheelLogic(void);
@@ -43,7 +50,7 @@ void onTimer();
 void initGpioInterupt();
 void IRAM_ATTR speedSensorRight();
 void IRAM_ATTR speedSensorLeft();
-
+void initPCNT();
 //Structure configuration for motor
 gpio_config_t o_configMotor = {
     .pin_bit_mask= OUTPUT_PINS,
@@ -62,6 +69,8 @@ gpio_config_t i_configButton = {
 };
 
 adc_continuous_handle_t adc_handle;
+pcnt_unit_handle_t pcntHandleRight;
+pcnt_unit_handle_t pcntHandleLeft;
 
 //Function definitions
 Std_ReturnType setUpWheelLogic(){
@@ -192,12 +201,9 @@ void set_motor_speed(int motorSpeedA, int motorSpeedB) {
     ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1, motorSpeedB);
     ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1);
 }
-void onTimer(){
-    //TODO
-}
+
 
 void initTimer() {
-
    esp_timer_handle_t timerHandle;
    esp_timer_create_args_t timer_config = {
     .callback = onTimer,
@@ -209,20 +215,72 @@ void initTimer() {
 
    esp_timer_start_periodic(timerHandle, 1000000); //every 1s
 }
-void initGpioInterupt(){
-    gpio_config_t configGPIO = {
-        
+
+//This will count the number of increments of the wheel encoders
+void initPCNT(){
+    pcnt_unit_config_t pcntConfig = {
+        .low_limit = -1,
+        .high_limit = 32767,    
+        .intr_priority =0
     };
 
+    pcnt_new_unit(&pcntConfig, &pcntHandleRight);
+    pcnt_new_unit(&pcntConfig, &pcntHandleLeft);
 
+    pcnt_channel_handle_t channelHandleRight;
+    pcnt_channel_handle_t channelHandleLeft;
 
-};
-void IRAM_ATTR speedSensorRight(){
-    LMcounter_Right++;
-};
-void IRAM_ATTR speedSensorLeft(){
-    LMcounter_Left++;
-};
+    pcnt_chan_config_t channelConfRight= {
+        .edge_gpio_num= GPIO_NUM_17,
+        .level_gpio_num =-1,
+        };
+    pcnt_chan_config_t channelConfLeft= {
+        .edge_gpio_num= GPIO_NUM_5,
+        .level_gpio_num =-1,
+        };
+
+    pcnt_new_channel(pcntHandleRight, &channelConfRight, &channelHandleRight);
+    pcnt_new_channel(pcntHandleLeft, &channelConfLeft, &channelHandleLeft);
+
+    pcnt_channel_set_edge_action(channelHandleRight,PCNT_CHANNEL_EDGE_ACTION_INCREASE,PCNT_CHANNEL_EDGE_ACTION_HOLD);
+    pcnt_channel_set_edge_action(channelHandleLeft,PCNT_CHANNEL_EDGE_ACTION_INCREASE,PCNT_CHANNEL_EDGE_ACTION_HOLD);
+
+    //TODO maybe add a glitch filter
+    pcnt_unit_enable(pcntHandleRight);
+    pcnt_unit_start(pcntHandleRight);
+
+    pcnt_unit_enable(pcntHandleLeft);
+    pcnt_unit_start(pcntHandleLeft);
+}
+float speedRight;
+float rotationRight;
+int countRight;
+
+float speedLeft;
+float rotationLeft;
+int countLeft;
+void onTimer(){
+    pcnt_unit_stop(pcntHandleRight); //stop counting
+    pcnt_unit_stop(pcntHandleLeft); //stop counting
+
+    pcnt_unit_get_count(pcntHandleRight, &countRight);
+    pcnt_unit_get_count(pcntHandleLeft, &countLeft);
+
+    rotationRight = (float)countRight/encoderHoles;
+    speedRight = rotationRight * wheelCircumference;
+
+    rotationLeft = (float)countLeft/encoderHoles;
+    speedLeft = rotationLeft * wheelCircumference;
+
+    pcnt_unit_clear_count(pcntHandleRight); //clear count
+    pcnt_unit_clear_count(pcntHandleLeft); //clear count
+
+    pcnt_unit_start(pcntHandleRight); //restart counting
+    pcnt_unit_start(pcntHandleLeft); //restart counting
+
+    printf("speedRight: %s%.2f m/s\n", isReversed ? "-" : "", speedRight);
+    printf("speedLeft: %s%.2f m/s\n", isReversed ? "-" : "", speedLeft);
+}
 
 //initializing the ADC continous mode driver
 Std_ReturnType adcInit(){
@@ -279,22 +337,22 @@ Std_ReturnType adcStart(adc_continuous_handle_t adcHandle){
     return returnVal;
 }
 // Function to process joystick data
-void process_joystick_data(const adc_digi_output_data_t *data, size_t num_samples, int* xAxis, int* yAxis) {
+void static process_joystick_data(const adc_digi_output_data_t *data, size_t num_samples, int* xAxis, int* yAxis) {
     for (size_t i = 0; i < num_samples; ++i) {
         if (data[i].type1.channel == 0) {
             int raw_value = data[i].type1.data;  // Raw ADC value
-            printf("Joystick X: Raw=%d  ", raw_value);
+            // printf("Joystick X: Raw=%d  ", raw_value);
             *xAxis = raw_value;
         }
         else if(data[i].type1.channel == 3){
             int raw_value = data[i].type1.data;  // Raw ADC value
-            printf("Joystick Y: Raw=%d\n", raw_value);
+            // printf("Joystick Y: Raw=%d\n", raw_value);
             *yAxis = raw_value;
         }
     }
 }
 // ADC read task
-Std_ReturnType adc_read_task(int* xAxis, int* yAxis) {
+Std_ReturnType static adc_read_task(int* xAxis, int* yAxis) {
     Std_ReturnType returnVal= E_NOT_OK;
     if(xAxis== NULL || yAxis==NULL){
         return returnVal;
@@ -318,20 +376,19 @@ void app_main(void)
     int yAxis=0;
     int motorSpeedA=0;
     int motorSpeedB=0;
-    bool isReversed= false;
-    initTimer();
+    
     adcInit();
     adcStart(adc_handle);
     setUpWheelLogic();
     initMotorPWM();
+    initPCNT();
+    initTimer();
+    
 
     while(1){
         adc_read_task(&xAxis, &yAxis);
         SpeedAndDirectionControl(xAxis,yAxis,&motorSpeedA,&motorSpeedB,&isReversed);
-        printf("speedA: %d", motorSpeedA);
-        printf("speedB: %d", motorSpeedB);
         set_motor_speed(motorSpeedA, motorSpeedB);
-
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }

@@ -4,6 +4,7 @@
 #include "driver/pulse_cnt.h"
 #include "driver/gpio.h"
 #include "esp_timer.h"
+#include "autosarTypes.h"
 
 //Encoder defines
 #define encoderHoles 20
@@ -15,4 +16,4 @@ void initPCNT();
 void onTimer(bool* direction);
 void initTimer();
 
-#endif
+#endif //ENCODER_MANAGER_H

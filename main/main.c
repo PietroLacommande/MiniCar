@@ -5,11 +5,7 @@
 #include "motorControl.h"
 #include "encoderManager.h"
 #include "adcManager.h"
-
-//AUTOSAR types
-typedef uint8_t Std_ReturnType;
-#define E_OK        (uint8_t)0   
-#define E_NOT_OK    (uint8_t)1   
+#include "autosarTypes.h"
 
 bool isReversed= false;
 adc_continuous_handle_t adcHandle1;
